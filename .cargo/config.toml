@@ -1,0 +1,3 @@
+[env]
+ANDROID_SDK_ROOT = { value = "vendor/breda-android-sdk/sdk", relative = true, force = true }
+ANDROID_NDK_ROOT = { value = "vendor/breda-android-sdk/sdk/ndk/23.1.7779620", relative = true, force = true }

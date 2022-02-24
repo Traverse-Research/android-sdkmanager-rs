@@ -1,0 +1,286 @@
+use indicatif::{ProgressBar, ProgressStyle};
+use std::io::Cursor;
+use std::io::Read;
+use std::io::Write;
+use std::process::{Command, Stdio};
+use zip::ZipArchive;
+use std::fs::File;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf, Component};
+use rayon::prelude::*;
+
+#[derive(Default, Debug)]
+struct AndroidPackage {
+    package_name: String,
+    archives: Vec<AndroidArchive>,
+    dependencies: Vec<String>,
+}
+
+#[derive(Default, Debug)]
+struct AndroidArchive {
+    host_os: String,
+    url: String,
+}
+
+fn replace_in_file(filename: &str, needle: &str, haystack: &str) {
+    let data = std::fs::read_to_string(filename).unwrap();
+    let data = data.replace(needle, haystack);
+    let mut f = File::create(filename).unwrap();
+    f.write(data.as_bytes()).unwrap();
+    f.sync_all().unwrap();
+}
+
+fn list_archives<'a>(root_url: &str, archives_node: &'a roxmltree::Node<'a, 'a>) -> Vec<AndroidArchive> {
+    let mut packages = vec![];
+
+    for archive in archives_node.children() {
+        if archive.has_tag_name("archive") {
+            let mut package = AndroidArchive::default();
+            for host_os in archive.children() {
+                if host_os.has_tag_name("host-os") {
+                    package.host_os = host_os.text().unwrap().to_string();
+                }
+            }
+
+            for complete in archive.children() {
+                if complete.has_tag_name("complete") {
+                    for url in complete.children() {
+                        if url.has_tag_name("url") {
+                            package.url = format!("{}{}", root_url, url.text().unwrap());
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+
+            packages.push(package);
+        }
+    }
+
+    packages
+}
+
+fn list_dependencies<'a>(root_url: &str, dependencies_node: &'a roxmltree::Node<'a, 'a>) -> Vec<String> {
+    let mut dependency_paths = vec![];
+
+    for dependency in dependencies_node.children() {
+        if dependency.has_tag_name("dependency") {
+            dependency_paths.push(dependency.attribute("path").unwrap().to_owned());
+        }
+    }
+    
+    dependency_paths
+}
+
+fn find_remote_package_by_name<'a>(doc: &'a roxmltree::Document, root_url: &str, package_name: &str) -> AndroidPackage {
+    let mut android_package = AndroidPackage {
+        package_name: package_name.to_owned(),
+        ..Default::default()
+    };
+
+    for dec in doc.descendants() {
+        if dec.has_tag_name("remotePackage")
+            && dec.attribute("path") == Some(package_name)
+        {
+            for child in dec.children() {
+                if child.has_tag_name("archives") {
+                    android_package.archives = list_archives(root_url, &child);
+                }
+
+                if child.has_tag_name("dependencies") {
+                    android_package.dependencies = list_dependencies(root_url, &child);
+                }
+            }
+
+            break;
+        }
+    }
+
+    android_package
+}
+
+fn download_android_sdk_archive(package: &AndroidArchive) -> ZipArchive<Cursor<Box<[u8]>>> {
+    let mut response = ureq::get(&package.url).call().unwrap().into_reader();
+    let mut data = vec![];
+    response.read_to_end(&mut data).unwrap();
+    ZipArchive::new(Cursor::new(data.into_boxed_slice())).unwrap()
+}
+
+fn recurse_dependency_tree<'a>(doc: &roxmltree::Document<'a>, root_url: &str, package: &str, output: &mut HashSet<String>) {
+    output.insert(package.to_owned());
+
+    let packages = find_remote_package_by_name(&doc, root_url, package);
+    for dep in packages.dependencies {
+        recurse_dependency_tree(doc, root_url, &dep, output);
+        output.insert(dep);
+    }
+}
+
+// instead of the path in the zip file, android sdk expects something slightly more
+// elaborate, based on the package name & version
+fn androidolize_zipfile_paths(zip_path: &Path, new_roots: &Path) -> PathBuf {
+    let mut path_buf = PathBuf::new();
+    for (idx, component) in  zip_path.components().enumerate() {
+        if idx == 0 {
+            for root_comp in new_roots.components() {
+                path_buf.push(root_comp);
+            }
+        } else {
+            path_buf.push(component)
+        }
+    }
+
+    path_buf
+}
+
+fn main() {
+    let progress_bar = ProgressBar::new(1000);
+    progress_bar.set_style(
+        ProgressStyle::default_spinner()
+            .tick_strings(&[
+                "[    ]", "[=   ]", "[==  ]", "[=== ]", "[ ===]", "[  ==]", "[   =]", "[    ]",
+                "[   =]", "[  ==]", "[ ===]", "[====]", "[=== ]", "[==  ]", "[=   ]",
+            ])
+            .template("{spinner:.green} {msg}"),
+    );
+
+    progress_bar.set_message("Downloading Android package list");
+
+    let root_url = "https://dl.google.com/android/repository/";
+    let packages = ureq::get(&format!("{}/repository2-1.xml", root_url))
+        .call()
+        .unwrap()
+        .into_string()
+        .unwrap();
+
+    let doc = roxmltree::Document::parse(&packages).unwrap();
+
+    let mut all_dependencies = HashSet::new();
+    recurse_dependency_tree(&doc, root_url, "ndk;23.1.7779620", &mut all_dependencies);
+    recurse_dependency_tree(&doc, root_url, "platforms;android-31", &mut all_dependencies);
+    recurse_dependency_tree(&doc, root_url, "build-tools;31.0.0", &mut all_dependencies);
+    recurse_dependency_tree(&doc, root_url, "platform-tools", &mut all_dependencies);
+
+    dbg!(&all_dependencies);
+
+    let install_dir = "./vendor3/breda-android-sdk/";
+    let mut archives = vec![];
+
+    for package_name in all_dependencies {
+        let package = find_remote_package_by_name(&doc, root_url, &package_name);
+        
+        for archive in package.archives {
+            if archive.host_os.contains("windows") || archive.host_os == "" {
+                println!("{}", format!("Downloading `{}`", &package_name));
+                archives.push((package_name.clone(), archive));
+            }
+        }
+    }
+
+    let mut zip_archives = archives.par_iter().map(|(package_name, archive)| (package_name, download_android_sdk_archive(&archive))).collect::<Vec<_>>();
+
+    zip_archives.par_iter_mut().for_each(|(package_name, zip_archive)| {
+        println!("{}", format!("Extracting `{}`", package_name));
+        for i in 0..zip_archive.len() {
+            let mut file = zip_archive.by_index(i).unwrap();
+            let filepath = file.enclosed_name().unwrap();
+
+            let outpath = PathBuf::from(install_dir).join(
+                androidolize_zipfile_paths(filepath, Path::new(&package_name.replace(";", "/")))
+            );
+
+            if file.name().ends_with('/') {
+                std::fs::create_dir_all(&outpath).unwrap();
+            } else {
+                if let Some(p) = outpath.parent() {
+                    if !p.exists() {
+                        std::fs::create_dir_all(&p).unwrap();
+                    }
+                }
+
+                let mut outfile = std::fs::File::create(&outpath).unwrap();
+                std::io::copy(&mut file, &mut outfile).unwrap();
+            }
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Some(mode) = file.unix_mode() {
+                    fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
+                }
+            }
+        }
+        
+        // progress_bar.set_message(format!("Extracting `{}`", package_name));
+        // zip_archive.extract(&install_dir).unwrap();
+    });
+
+    println!("asdf");
+    println!("asdf");
+    println!("asdf");
+    /*
+
+    for package in packages.archives {
+        // todo: linux, macosx
+        if package.host_os.contains("windows") {
+            let install_dir = "./vendor/breda-android-sdk/";
+
+            progress_bar.set_message("Remove previously installed Android Sdk");
+            if std::path::Path::new(install_dir).exists() {
+                std::fs::remove_dir_all(install_dir).unwrap();
+            }
+            std::fs::create_dir_all(install_dir).unwrap();
+
+            progress_bar.set_message("Downloading `sdkmanager`");
+            let mut zip_archive = download_android_sdk_archive(&package);
+
+            progress_bar.set_message("Extracting `sdkmanager`");
+            zip_archive.extract(&install_dir).unwrap();
+
+            // On windows at least, though other platforms with old Java versions are succeptible to this too
+            // We need to patch up the sdkmanager to run, because of course we do.
+            // https://stackoverflow.com/questions/47345147/android-sdk-manager-throw-exception-with-java-9
+            replace_in_file(&format!("{}cmdline-tools/bin/sdkmanager.bat", install_dir), "set DEFAULT_JVM_OPTS=\"-Dcom.android.sdklib.toolsdir=%~dp0\\..\"", "set DEFAULT_JVM_OPTS=\"-Dcom.android.sdklib.toolsdir=%~dp0\\..\" -XX:+IgnoreUnrecognizedVMOptions --add-modules java.se.ee");
+
+            let android_packages = vec![
+                "ndk;23.1.7779620",
+                "platforms;android-31",
+                "build-tools;31.0.0",
+                "platform-tools",
+            ];
+
+            for pkg in android_packages {
+                progress_bar.set_message(format!("Installing {}", pkg));
+
+                let mut child =
+                    Command::new(format!("{}cmdline-tools/bin/sdkmanager.bat", install_dir))
+                        .arg(format!("--sdk_root={}sdk/", install_dir))
+                        .args(["--no_https", pkg]) // with https doesn't work for some reason
+                        .stdin(Stdio::piped())
+                        .stdout(Stdio::piped())
+                        .stderr(Stdio::piped())
+                        .spawn()
+                        .unwrap();
+
+                // accept license agreement
+                let child_stdin = child.stdin.as_mut().unwrap();
+                child_stdin.write_all(b"y\n").unwrap();
+                drop(child_stdin);
+
+                let _ = child.wait_with_output().unwrap();
+            }
+
+            // workaround until we can use [env] section in .carg/config.toml
+            globalenv::set_var("ANDROID_SDK_ROOT", &dunce::canonicalize(format!("{}sdk", install_dir)).unwrap().to_string_lossy());
+            globalenv::set_var("ANDROID_NDK_ROOT", &dunce::canonicalize(format!("{}sdk/ndk/23.1.7779620", install_dir)).unwrap().to_string_lossy());
+        }
+    }
+
+    */
+}
+
+
+// - add aarch64-linux-android to rust-toolchain.toml
+// - ANDROID_SDK_ROOT and ANDROID_NDK_ROOT in .config/cargo.toml
+// - automatically install cargo-apk
