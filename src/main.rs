@@ -1,17 +1,13 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::collections::HashSet;
-use std::fs::File;
 use std::io::Cursor;
 use std::io::Read;
-use std::io::Write;
-use std::path::{Component, Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 #[derive(Default, Debug)]
 struct AndroidPackage {
-    package_name: String,
     archives: Vec<AndroidArchive>,
     dependencies: Vec<String>,
 }
@@ -20,14 +16,6 @@ struct AndroidPackage {
 struct AndroidArchive {
     host_os: String,
     url: String,
-}
-
-fn replace_in_file(filename: &str, needle: &str, haystack: &str) {
-    let data = std::fs::read_to_string(filename).unwrap();
-    let data = data.replace(needle, haystack);
-    let mut f = File::create(filename).unwrap();
-    f.write(data.as_bytes()).unwrap();
-    f.sync_all().unwrap();
 }
 
 fn list_archives<'a>(
@@ -64,10 +52,7 @@ fn list_archives<'a>(
     packages
 }
 
-fn list_dependencies<'a>(
-    root_url: &str,
-    dependencies_node: &'a roxmltree::Node<'a, 'a>,
-) -> Vec<String> {
+fn list_dependencies<'a>(dependencies_node: &'a roxmltree::Node<'a, 'a>) -> Vec<String> {
     let mut dependency_paths = vec![];
 
     for dependency in dependencies_node.children() {
@@ -84,10 +69,7 @@ fn find_remote_package_by_name<'a>(
     root_url: &str,
     package_name: &str,
 ) -> AndroidPackage {
-    let mut android_package = AndroidPackage {
-        package_name: package_name.to_owned(),
-        ..Default::default()
-    };
+    let mut android_package = AndroidPackage::default();
 
     for dec in doc.descendants() {
         if dec.has_tag_name("remotePackage") && dec.attribute("path") == Some(package_name) {
@@ -97,7 +79,7 @@ fn find_remote_package_by_name<'a>(
                 }
 
                 if child.has_tag_name("dependencies") {
-                    android_package.dependencies = list_dependencies(root_url, &child);
+                    android_package.dependencies = list_dependencies(&child);
                 }
             }
 
@@ -179,8 +161,6 @@ fn main() {
     );
     recurse_dependency_tree(&doc, root_url, "build-tools;31.0.0", &mut all_dependencies);
     recurse_dependency_tree(&doc, root_url, "platform-tools", &mut all_dependencies);
-
-    dbg!(&all_dependencies);
 
     let install_dir = "./vendor3/breda-android-sdk/";
     let mut archives = vec![];
