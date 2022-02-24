@@ -211,73 +211,7 @@ fn main() {
                 }
             }
         }
-        
-        // progress_bar.set_message(format!("Extracting `{}`", package_name));
-        // zip_archive.extract(&install_dir).unwrap();
     });
-
-    println!("asdf");
-    println!("asdf");
-    println!("asdf");
-    /*
-
-    for package in packages.archives {
-        // todo: linux, macosx
-        if package.host_os.contains("windows") {
-            let install_dir = "./vendor/breda-android-sdk/";
-
-            progress_bar.set_message("Remove previously installed Android Sdk");
-            if std::path::Path::new(install_dir).exists() {
-                std::fs::remove_dir_all(install_dir).unwrap();
-            }
-            std::fs::create_dir_all(install_dir).unwrap();
-
-            progress_bar.set_message("Downloading `sdkmanager`");
-            let mut zip_archive = download_android_sdk_archive(&package);
-
-            progress_bar.set_message("Extracting `sdkmanager`");
-            zip_archive.extract(&install_dir).unwrap();
-
-            // On windows at least, though other platforms with old Java versions are succeptible to this too
-            // We need to patch up the sdkmanager to run, because of course we do.
-            // https://stackoverflow.com/questions/47345147/android-sdk-manager-throw-exception-with-java-9
-            replace_in_file(&format!("{}cmdline-tools/bin/sdkmanager.bat", install_dir), "set DEFAULT_JVM_OPTS=\"-Dcom.android.sdklib.toolsdir=%~dp0\\..\"", "set DEFAULT_JVM_OPTS=\"-Dcom.android.sdklib.toolsdir=%~dp0\\..\" -XX:+IgnoreUnrecognizedVMOptions --add-modules java.se.ee");
-
-            let android_packages = vec![
-                "ndk;23.1.7779620",
-                "platforms;android-31",
-                "build-tools;31.0.0",
-                "platform-tools",
-            ];
-
-            for pkg in android_packages {
-                progress_bar.set_message(format!("Installing {}", pkg));
-
-                let mut child =
-                    Command::new(format!("{}cmdline-tools/bin/sdkmanager.bat", install_dir))
-                        .arg(format!("--sdk_root={}sdk/", install_dir))
-                        .args(["--no_https", pkg]) // with https doesn't work for some reason
-                        .stdin(Stdio::piped())
-                        .stdout(Stdio::piped())
-                        .stderr(Stdio::piped())
-                        .spawn()
-                        .unwrap();
-
-                // accept license agreement
-                let child_stdin = child.stdin.as_mut().unwrap();
-                child_stdin.write_all(b"y\n").unwrap();
-                drop(child_stdin);
-
-                let _ = child.wait_with_output().unwrap();
-            }
-
-            // workaround until we can use [env] section in .carg/config.toml
-            globalenv::set_var("ANDROID_SDK_ROOT", &dunce::canonicalize(format!("{}sdk", install_dir)).unwrap().to_string_lossy());
-            globalenv::set_var("ANDROID_NDK_ROOT", &dunce::canonicalize(format!("{}sdk/ndk/23.1.7779620", install_dir)).unwrap().to_string_lossy());
-        }
-    }
-
-    */
 }
 
 
