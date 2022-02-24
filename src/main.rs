@@ -1,4 +1,3 @@
-use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::io::Cursor;
@@ -130,18 +129,6 @@ fn androidolize_zipfile_paths(zip_path: &Path, new_roots: &Path) -> PathBuf {
 }
 
 fn main() {
-    let progress_bar = ProgressBar::new(1000);
-    progress_bar.set_style(
-        ProgressStyle::default_spinner()
-            .tick_strings(&[
-                "[    ]", "[=   ]", "[==  ]", "[=== ]", "[ ===]", "[  ==]", "[   =]", "[    ]",
-                "[   =]", "[  ==]", "[ ===]", "[====]", "[=== ]", "[==  ]", "[=   ]",
-            ])
-            .template("{spinner:.green} {msg}"),
-    );
-
-    progress_bar.set_message("Downloading Android package list");
-
     let root_url = "https://dl.google.com/android/repository/";
     let packages = ureq::get(&format!("{}/repository2-1.xml", root_url))
         .call()
