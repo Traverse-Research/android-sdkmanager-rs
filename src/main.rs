@@ -1,13 +1,13 @@
 use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
+use std::collections::HashSet;
+use std::fs::File;
 use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use zip::ZipArchive;
-use std::fs::File;
-use std::collections::HashSet;
-use std::path::{Path, PathBuf, Component};
-use rayon::prelude::*;
 
 #[derive(Default, Debug)]
 struct AndroidPackage {
@@ -30,7 +30,10 @@ fn replace_in_file(filename: &str, needle: &str, haystack: &str) {
     f.sync_all().unwrap();
 }
 
-fn list_archives<'a>(root_url: &str, archives_node: &'a roxmltree::Node<'a, 'a>) -> Vec<AndroidArchive> {
+fn list_archives<'a>(
+    root_url: &str,
+    archives_node: &'a roxmltree::Node<'a, 'a>,
+) -> Vec<AndroidArchive> {
     let mut packages = vec![];
 
     for archive in archives_node.children() {
@@ -61,7 +64,10 @@ fn list_archives<'a>(root_url: &str, archives_node: &'a roxmltree::Node<'a, 'a>)
     packages
 }
 
-fn list_dependencies<'a>(root_url: &str, dependencies_node: &'a roxmltree::Node<'a, 'a>) -> Vec<String> {
+fn list_dependencies<'a>(
+    root_url: &str,
+    dependencies_node: &'a roxmltree::Node<'a, 'a>,
+) -> Vec<String> {
     let mut dependency_paths = vec![];
 
     for dependency in dependencies_node.children() {
@@ -69,20 +75,22 @@ fn list_dependencies<'a>(root_url: &str, dependencies_node: &'a roxmltree::Node<
             dependency_paths.push(dependency.attribute("path").unwrap().to_owned());
         }
     }
-    
+
     dependency_paths
 }
 
-fn find_remote_package_by_name<'a>(doc: &'a roxmltree::Document, root_url: &str, package_name: &str) -> AndroidPackage {
+fn find_remote_package_by_name<'a>(
+    doc: &'a roxmltree::Document,
+    root_url: &str,
+    package_name: &str,
+) -> AndroidPackage {
     let mut android_package = AndroidPackage {
         package_name: package_name.to_owned(),
         ..Default::default()
     };
 
     for dec in doc.descendants() {
-        if dec.has_tag_name("remotePackage")
-            && dec.attribute("path") == Some(package_name)
-        {
+        if dec.has_tag_name("remotePackage") && dec.attribute("path") == Some(package_name) {
             for child in dec.children() {
                 if child.has_tag_name("archives") {
                     android_package.archives = list_archives(root_url, &child);
@@ -107,7 +115,12 @@ fn download_android_sdk_archive(package: &AndroidArchive) -> ZipArchive<Cursor<B
     ZipArchive::new(Cursor::new(data.into_boxed_slice())).unwrap()
 }
 
-fn recurse_dependency_tree<'a>(doc: &roxmltree::Document<'a>, root_url: &str, package: &str, output: &mut HashSet<String>) {
+fn recurse_dependency_tree<'a>(
+    doc: &roxmltree::Document<'a>,
+    root_url: &str,
+    package: &str,
+    output: &mut HashSet<String>,
+) {
     output.insert(package.to_owned());
 
     let packages = find_remote_package_by_name(&doc, root_url, package);
@@ -121,7 +134,7 @@ fn recurse_dependency_tree<'a>(doc: &roxmltree::Document<'a>, root_url: &str, pa
 // elaborate, based on the package name & version
 fn androidolize_zipfile_paths(zip_path: &Path, new_roots: &Path) -> PathBuf {
     let mut path_buf = PathBuf::new();
-    for (idx, component) in  zip_path.components().enumerate() {
+    for (idx, component) in zip_path.components().enumerate() {
         if idx == 0 {
             for root_comp in new_roots.components() {
                 path_buf.push(root_comp);
@@ -158,7 +171,12 @@ fn main() {
 
     let mut all_dependencies = HashSet::new();
     recurse_dependency_tree(&doc, root_url, "ndk;23.1.7779620", &mut all_dependencies);
-    recurse_dependency_tree(&doc, root_url, "platforms;android-31", &mut all_dependencies);
+    recurse_dependency_tree(
+        &doc,
+        root_url,
+        "platforms;android-31",
+        &mut all_dependencies,
+    );
     recurse_dependency_tree(&doc, root_url, "build-tools;31.0.0", &mut all_dependencies);
     recurse_dependency_tree(&doc, root_url, "platform-tools", &mut all_dependencies);
 
@@ -169,7 +187,7 @@ fn main() {
 
     for package_name in all_dependencies {
         let package = find_remote_package_by_name(&doc, root_url, &package_name);
-        
+
         for archive in package.archives {
             if archive.host_os.contains("windows") || archive.host_os == "" {
                 println!("{}", format!("Downloading `{}`", &package_name));
@@ -178,42 +196,47 @@ fn main() {
         }
     }
 
-    let mut zip_archives = archives.par_iter().map(|(package_name, archive)| (package_name, download_android_sdk_archive(&archive))).collect::<Vec<_>>();
+    let mut zip_archives = archives
+        .par_iter()
+        .map(|(package_name, archive)| (package_name, download_android_sdk_archive(&archive)))
+        .collect::<Vec<_>>();
 
-    zip_archives.par_iter_mut().for_each(|(package_name, zip_archive)| {
-        println!("{}", format!("Extracting `{}`", package_name));
-        for i in 0..zip_archive.len() {
-            let mut file = zip_archive.by_index(i).unwrap();
-            let filepath = file.enclosed_name().unwrap();
+    zip_archives
+        .par_iter_mut()
+        .for_each(|(package_name, zip_archive)| {
+            println!("{}", format!("Extracting `{}`", package_name));
+            for i in 0..zip_archive.len() {
+                let mut file = zip_archive.by_index(i).unwrap();
+                let filepath = file.enclosed_name().unwrap();
 
-            let outpath = PathBuf::from(install_dir).join(
-                androidolize_zipfile_paths(filepath, Path::new(&package_name.replace(";", "/")))
-            );
+                let outpath = PathBuf::from(install_dir).join(androidolize_zipfile_paths(
+                    filepath,
+                    Path::new(&package_name.replace(";", "/")),
+                ));
 
-            if file.name().ends_with('/') {
-                std::fs::create_dir_all(&outpath).unwrap();
-            } else {
-                if let Some(p) = outpath.parent() {
-                    if !p.exists() {
-                        std::fs::create_dir_all(&p).unwrap();
+                if file.name().ends_with('/') {
+                    std::fs::create_dir_all(&outpath).unwrap();
+                } else {
+                    if let Some(p) = outpath.parent() {
+                        if !p.exists() {
+                            std::fs::create_dir_all(&p).unwrap();
+                        }
+                    }
+
+                    let mut outfile = std::fs::File::create(&outpath).unwrap();
+                    std::io::copy(&mut file, &mut outfile).unwrap();
+                }
+
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Some(mode) = file.unix_mode() {
+                        fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
                     }
                 }
-
-                let mut outfile = std::fs::File::create(&outpath).unwrap();
-                std::io::copy(&mut file, &mut outfile).unwrap();
             }
-
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if let Some(mode) = file.unix_mode() {
-                    fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
-                }
-            }
-        }
-    });
+        });
 }
-
 
 // - add aarch64-linux-android to rust-toolchain.toml
 // - ANDROID_SDK_ROOT and ANDROID_NDK_ROOT in .config/cargo.toml
