@@ -128,7 +128,7 @@ fn androidolize_zipfile_paths(zip_path: &Path, new_roots: &Path) -> PathBuf {
     path_buf
 }
 
-fn main() {
+fn download_and_extract_packages(install_dir: &str, host_os: &str, download_packages: &[&str]) {
     let root_url = "https://dl.google.com/android/repository/";
     let packages = ureq::get(&format!("{}/repository2-1.xml", root_url))
         .call()
@@ -138,25 +138,18 @@ fn main() {
 
     let doc = roxmltree::Document::parse(&packages).unwrap();
 
+    // make a flat list of all packages and their dependencies
     let mut all_dependencies = HashSet::new();
-    recurse_dependency_tree(&doc, root_url, "ndk;23.1.7779620", &mut all_dependencies);
-    recurse_dependency_tree(
-        &doc,
-        root_url,
-        "platforms;android-31",
-        &mut all_dependencies,
-    );
-    recurse_dependency_tree(&doc, root_url, "build-tools;31.0.0", &mut all_dependencies);
-    recurse_dependency_tree(&doc, root_url, "platform-tools", &mut all_dependencies);
-
-    let install_dir = "./vendor3/breda-android-sdk/";
+    for package in download_packages {
+        recurse_dependency_tree(&doc, root_url, package, &mut all_dependencies);
+    }
     let mut archives = vec![];
 
     for package_name in all_dependencies {
         let package = find_remote_package_by_name(&doc, root_url, &package_name);
 
         for archive in package.archives {
-            if archive.host_os.contains("windows") || archive.host_os == "" {
+            if archive.host_os.contains(host_os) || archive.host_os == "" {
                 println!("{}", format!("Downloading `{}`", &package_name));
                 archives.push((package_name.clone(), archive));
             }
@@ -203,6 +196,21 @@ fn main() {
                 }
             }
         });
+}
+
+fn main() {
+    let install_dir = "./vendor-linux/breda-android-sdk/";
+
+    download_and_extract_packages(
+        install_dir,
+        "macosx",
+        &[
+            "ndk;23.1.7779620",
+            "platforms;android-31",
+            "build-tools;31.0.0",
+            "platform-tools",
+        ],
+    );
 }
 
 // - add aarch64-linux-android to rust-toolchain.toml
