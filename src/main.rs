@@ -154,6 +154,13 @@ fn is_allowed(path: &Path, allow_list: Option<&[MatchType]>) -> bool {
                         }
                     }
                 }
+                &MatchType::EntireFolder(check) => {
+                    if let Some(path) = path.to_str() {
+                        if path.contains(check) {
+                            return true;
+                        }
+                    }
+                }
             }
         }
 
@@ -244,6 +251,7 @@ pub enum MatchType {
     Partial(&'static str),
     EntireStem(&'static str),
     EntireName(&'static str),
+    EntireFolder(&'static str),
 }
 
 pub enum HostOs {
@@ -263,7 +271,12 @@ impl HostOs {
 }
 
 fn main() {
-    let install_dir = "./vendor-linux/breda-android-sdk/";
+    let full = false;
+    let install_dir = if full {
+        "./vendor-full/breda-android-sdk/"
+    } else {
+        "./vendor-linux/breda-android-sdk/"
+    };
 
     let _ = std::fs::remove_dir_all(install_dir);
     let _ = std::fs::create_dir_all(install_dir);
@@ -277,21 +290,44 @@ fn main() {
             "build-tools;31.0.0",
             "platform-tools",
         ],
-        Some(&[
-            MatchType::EntireStem("aapt"),
-            MatchType::EntireStem("zipalign"),
-            MatchType::EntireStem("apksigner"),
-            MatchType::EntireStem("adb"),
-            MatchType::EntireName("android.jar"),
-            MatchType::EntireName("source.properties"),
-            MatchType::EntireName("platforms.mk"),
-            MatchType::Partial("clang"),
-            MatchType::EntireStem("ar"),
-            MatchType::Partial("-ar"),
-            MatchType::EntireStem("readelf"),
-        ]),
+        if full {
+            None
+        } else {
+            Some(&[
+                MatchType::EntireStem("aapt"),
+                MatchType::EntireStem("zipalign"),
+                MatchType::EntireStem("apksigner"),
+                MatchType::EntireStem("adb"),
+                MatchType::EntireName("android.jar"),
+                MatchType::EntireName("source.properties"),
+                MatchType::EntireName("platforms.mk"),
+                MatchType::Partial("clang"),
+                MatchType::EntireStem("ar"),
+                MatchType::Partial("-ar"),
+                MatchType::EntireStem("readelf"),
+                // platform specific
+                MatchType::EntireName("libwinpthread-1.dll"),
+                MatchType::EntireStem("lld"),
+                // to build native code
+                MatchType::EntireFolder("sysroot"),
+
+                // Test
+                MatchType::EntireFolder("cxx-stl"),
+
+                // C:\Users\Jasper\traverse\android-sdk-manager-rs\vendor-full\breda-android-sdk\ndk\23.1.7779620\toolchains\llvm\prebuilt\windows-x86_64\lib64\clang\12.0.8\include\stddef.h
+                MatchType::EntireFolder("build-tools"),
+                MatchType::EntireFolder("lib64"),
+                MatchType::EntireFolder("libc++_shared.so"),
+                MatchType::EntireFolder("libVkLayer_khronos_validation.so"),
+            ])
+        },
     );
 }
+
+/*
+ 'lib/arm64-v8a/libc++_shared.so'...
+ 'lib/arm64-v8a/libVkLayer_khronos_validation.so'...
+ */
 
 // - add aarch64-linux-android to rust-toolchain.toml
 // - ANDROID_SDK_ROOT and ANDROID_NDK_ROOT in .config/cargo.toml
