@@ -128,7 +128,19 @@ fn androidolize_zipfile_paths(zip_path: &Path, new_roots: &Path) -> PathBuf {
     path_buf
 }
 
-fn download_and_extract_packages(install_dir: &str, host_os: &str, download_packages: &[&str]) {
+fn is_allowed(name: &str, allow_list: Option<&[&str]>) -> bool {
+    if let Some(allow_list) = allow_list {
+        for check in allow_list {
+            if name.contains(check) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+fn download_and_extract_packages(install_dir: &str, host_os: &str, download_packages: &[&str], allow_list: Option<&[&str]>) {
     let root_url = "https://dl.google.com/android/repository/";
     let packages = ureq::get(&format!("{}/repository2-1.xml", root_url))
         .call()
@@ -183,8 +195,10 @@ fn download_and_extract_packages(install_dir: &str, host_os: &str, download_pack
                         }
                     }
 
-                    let mut outfile = std::fs::File::create(&outpath).unwrap();
-                    std::io::copy(&mut file, &mut outfile).unwrap();
+                    if is_allowed(filepath.to_str().unwrap(), allow_list) {
+                        let mut outfile = std::fs::File::create(&outpath).unwrap();
+                        std::io::copy(&mut file, &mut outfile).unwrap();
+                    }
                 }
 
                 #[cfg(unix)]
@@ -210,6 +224,16 @@ fn main() {
             "build-tools;31.0.0",
             "platform-tools",
         ],
+        &[
+            "aapt",
+            "zipalign",
+            "apksigner",
+            "adb",
+            "android.jar",
+            "clang",
+            "ar",
+            "readelf"
+        ]
     );
 }
 
