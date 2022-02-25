@@ -1,4 +1,5 @@
 use rayon::prelude::*;
+use rayon::str::MatchIndices;
 use std::collections::HashSet;
 use std::io::Cursor;
 use std::io::Read;
@@ -128,19 +129,46 @@ fn androidolize_zipfile_paths(zip_path: &Path, new_roots: &Path) -> PathBuf {
     path_buf
 }
 
-fn is_allowed(name: &str, allow_list: Option<&[&str]>) -> bool {
+fn is_allowed(path: &Path, allow_list: Option<&[MatchType]>) -> bool {
     if let Some(allow_list) = allow_list {
         for check in allow_list {
-            if name.contains(check) {
-                return true;
+            match check {
+                &MatchType::Partial(check) => {
+                    if let Some(file_stem) = path.file_stem() {
+                        if file_stem.to_str().unwrap().contains(check) {
+                            return true;
+                        }
+                    }
+                }
+                &MatchType::EntireStem(check) => {
+                    if let Some(file_stem) = path.file_stem() {
+                        if file_stem.to_str().unwrap() == check {
+                            return true;
+                        }
+                    }
+                }
+                &MatchType::EntireName(check) => {
+                    if let Some(file_stem) = path.file_name() {
+                        if file_stem.to_str().unwrap() == check {
+                            return true;
+                        }
+                    }
+                }
             }
         }
-    }
 
-    false
+        false
+    } else {
+        true
+    }
 }
 
-fn download_and_extract_packages(install_dir: &str, host_os: &str, download_packages: &[&str], allow_list: Option<&[&str]>) {
+fn download_and_extract_packages(
+    install_dir: &str,
+    host_os: HostOs,
+    download_packages: &[&str],
+    allow_list: Option<&[MatchType]>,
+) {
     let root_url = "https://dl.google.com/android/repository/";
     let packages = ureq::get(&format!("{}/repository2-1.xml", root_url))
         .call()
@@ -161,7 +189,7 @@ fn download_and_extract_packages(install_dir: &str, host_os: &str, download_pack
         let package = find_remote_package_by_name(&doc, root_url, &package_name);
 
         for archive in package.archives {
-            if archive.host_os.contains(host_os) || archive.host_os == "" {
+            if archive.host_os.contains(host_os.to_str()) || archive.host_os == "" {
                 println!("{}", format!("Downloading `{}`", &package_name));
                 archives.push((package_name.clone(), archive));
             }
@@ -186,16 +214,16 @@ fn download_and_extract_packages(install_dir: &str, host_os: &str, download_pack
                     Path::new(&package_name.replace(";", "/")),
                 ));
 
-                if file.name().ends_with('/') {
-                    std::fs::create_dir_all(&outpath).unwrap();
-                } else {
-                    if let Some(p) = outpath.parent() {
-                        if !p.exists() {
-                            std::fs::create_dir_all(&p).unwrap();
+                if is_allowed(filepath, allow_list) {
+                    if file.name().ends_with('/') {
+                        std::fs::create_dir_all(&outpath).unwrap();
+                    } else {
+                        if let Some(p) = outpath.parent() {
+                            if !p.exists() {
+                                std::fs::create_dir_all(&p).unwrap();
+                            }
                         }
-                    }
 
-                    if is_allowed(filepath.to_str().unwrap(), allow_list) {
                         let mut outfile = std::fs::File::create(&outpath).unwrap();
                         std::io::copy(&mut file, &mut outfile).unwrap();
                     }
@@ -212,28 +240,56 @@ fn download_and_extract_packages(install_dir: &str, host_os: &str, download_pack
         });
 }
 
+pub enum MatchType {
+    Partial(&'static str),
+    EntireStem(&'static str),
+    EntireName(&'static str),
+}
+
+pub enum HostOs {
+    Windows,
+    MacOs,
+    Linux,
+}
+
+impl HostOs {
+    fn to_str(&self) -> &'static str {
+        match self {
+            &HostOs::Windows => "windows",
+            &HostOs::Linux => "linux",
+            &HostOs::MacOs => "macosx",
+        }
+    }
+}
+
 fn main() {
     let install_dir = "./vendor-linux/breda-android-sdk/";
 
+    let _ = std::fs::remove_dir_all(install_dir);
+    let _ = std::fs::create_dir_all(install_dir);
+
     download_and_extract_packages(
         install_dir,
-        "macosx",
+        HostOs::Windows,
         &[
             "ndk;23.1.7779620",
             "platforms;android-31",
             "build-tools;31.0.0",
             "platform-tools",
         ],
-        &[
-            "aapt",
-            "zipalign",
-            "apksigner",
-            "adb",
-            "android.jar",
-            "clang",
-            "ar",
-            "readelf"
-        ]
+        Some(&[
+            MatchType::EntireStem("aapt"),
+            MatchType::EntireStem("zipalign"),
+            MatchType::EntireStem("apksigner"),
+            MatchType::EntireStem("adb"),
+            MatchType::EntireName("android.jar"),
+            MatchType::EntireName("source.properties"),
+            MatchType::EntireName("platforms.mk"),
+            MatchType::Partial("clang"),
+            MatchType::EntireStem("ar"),
+            MatchType::Partial("-ar"),
+            MatchType::EntireStem("readelf"),
+        ]),
     );
 }
 
