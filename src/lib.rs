@@ -104,7 +104,7 @@ fn recurse_dependency_tree<'a>(
 ) {
     output.insert(package.to_owned());
 
-    let packages = find_remote_package_by_name(&doc, root_url, package);
+    let packages = find_remote_package_by_name(doc, root_url, package);
     for dep in packages.dependencies {
         recurse_dependency_tree(doc, root_url, &dep, output);
         output.insert(dep);
@@ -132,28 +132,28 @@ fn is_allowed(path: &Path, allow_list: Option<&[MatchType]>) -> bool {
     if let Some(allow_list) = allow_list {
         for check in allow_list {
             match check {
-                &MatchType::Partial(check) => {
+                MatchType::Partial(check) => {
                     if let Some(file_stem) = path.file_stem() {
                         if file_stem.to_str().unwrap().contains(check) {
                             return true;
                         }
                     }
                 }
-                &MatchType::EntireStem(check) => {
+                MatchType::EntireStem(check) => {
                     if let Some(file_stem) = path.file_stem() {
-                        if file_stem.to_str().unwrap() == check {
+                        if &file_stem.to_str().unwrap() == check {
                             return true;
                         }
                     }
                 }
-                &MatchType::EntireName(check) => {
+                MatchType::EntireName(check) => {
                     if let Some(file_stem) = path.file_name() {
-                        if file_stem.to_str().unwrap() == check {
+                        if &file_stem.to_str().unwrap() == check {
                             return true;
                         }
                     }
                 }
-                &MatchType::EntireFolder(check) => {
+                MatchType::EntireFolder(check) => {
                     if let Some(path) = path.to_str() {
                         if path.contains(check) {
                             return true;
@@ -195,8 +195,8 @@ pub fn download_and_extract_packages(
         let package = find_remote_package_by_name(&doc, root_url, &package_name);
 
         for archive in package.archives {
-            if archive.host_os.contains(host_os.to_str()) || archive.host_os == "" {
-                println!("{}", format!("Downloading `{}`", &package_name));
+            if archive.host_os.contains(host_os.to_str()) || archive.host_os.is_empty() {
+                println!("Downloading `{}`", &package_name);
                 archives.push((package_name.clone(), archive));
             }
         }
@@ -204,13 +204,13 @@ pub fn download_and_extract_packages(
 
     let mut zip_archives = archives
         .par_iter()
-        .map(|(package_name, archive)| (package_name, download_android_sdk_archive(&archive)))
+        .map(|(package_name, archive)| (package_name, download_android_sdk_archive(archive)))
         .collect::<Vec<_>>();
 
     zip_archives
         .par_iter_mut()
         .for_each(|(package_name, zip_archive)| {
-            println!("{}", format!("Extracting `{}`", package_name));
+            println!("Extracting `{}`", package_name);
             for i in 0..zip_archive.len() {
                 let mut file = zip_archive.by_index(i).unwrap();
                 let filepath = file.enclosed_name().unwrap();
@@ -253,6 +253,7 @@ pub enum MatchType {
     EntireFolder(&'static str),
 }
 
+#[derive(Copy, Clone)]
 pub enum HostOs {
     Windows,
     MacOs,
@@ -260,11 +261,11 @@ pub enum HostOs {
 }
 
 impl HostOs {
-    fn to_str(&self) -> &'static str {
+    fn to_str(self) -> &'static str {
         match self {
-            &HostOs::Windows => "windows",
-            &HostOs::Linux => "linux",
-            &HostOs::MacOs => "macosx",
+            HostOs::Windows => "windows",
+            HostOs::Linux => "linux",
+            HostOs::MacOs => "macosx",
         }
     }
 }
