@@ -1,4 +1,4 @@
-use sdkmanager::{download_and_extract_packages, HostOs, MatchType};
+use android_sdkmanager::{download_and_extract_packages, HostOs, MatchType};
 
 fn main() {
     let full = false;
