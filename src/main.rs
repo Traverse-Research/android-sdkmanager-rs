@@ -1,25 +1,73 @@
 use android_sdkmanager::{download_and_extract_packages, HostOs, MatchType};
+use anyhow::Result;
 
-fn main() {
-    let full = false;
-    let install_dir = if full {
-        "./vendor-full/breda-android-sdk/"
-    } else {
-        "./vendor-linux/breda-android-sdk/"
+const HELP: &str = "\
+android-sdkmanager-rs is a lightweight android sdk and ndk package installer.
+
+USAGE:
+  cargo android-sdkmanager [OPTIONS] [INPUT]
+FLAGS:
+  -h, --help            Prints help information
+OPTIONS:
+  --sdk_path PATH       Sets the SDK install path
+ARGS:
+  <INPUT>               A list of all android packages, if left empty we'll install the packages required for cargo-apk to work
+";
+
+#[derive(Debug)]
+struct AppArgs {
+    sdk_path: String,
+    packages: Vec<String>,
+}
+
+fn parse_args() -> Result<AppArgs, pico_args::Error> {
+    let mut pargs = pico_args::Arguments::from_env();
+
+    // Help has a higher priority and should be handled separately.
+    if pargs.contains(["-h", "--help"]) {
+        print!("{}", HELP);
+        std::process::exit(0);
+    }
+
+    let mut args = AppArgs {
+        sdk_path: pargs.value_from_str("--sdk_path")?,
+        packages: vec![],
     };
+
+    let packages = pargs.finish();
+    args.packages = packages
+        .iter()
+        .map(|os_str| os_str.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+
+    Ok(args)
+}
+
+fn main() -> Result<()> {
+    let args = parse_args()?;
+    let full = true;
+
+    let install_dir = &args.sdk_path;
 
     let _ = std::fs::remove_dir_all(install_dir);
     let _ = std::fs::create_dir_all(install_dir);
 
-    download_and_extract_packages(
-        install_dir,
-        HostOs::Windows,
+    let packages_borrowed = args.packages.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+    let packages_borrowed = if packages_borrowed.is_empty() {
         &[
             "ndk;23.1.7779620",
             "platforms;android-31",
             "build-tools;31.0.0",
             "platform-tools",
-        ],
+        ]
+    } else {
+        packages_borrowed.as_slice()
+    };
+
+    download_and_extract_packages(
+        install_dir,
+        HostOs::Windows,
+        packages_borrowed,
         if full {
             None
         } else {
@@ -50,6 +98,8 @@ fn main() {
             ])
         },
     );
+
+    Ok(())
 }
 
 /*
