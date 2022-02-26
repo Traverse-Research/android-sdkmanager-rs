@@ -1,4 +1,4 @@
-📒 android-sdk-manager-rs
+🤖 android-sdk-manager-rs
 =
 
 [![Actions Status](https://github.com/Traverse-Research/android-sdk-manager-rs/workflows/CI/badge.svg)](https://github.com/Traverse-Research/android-sdk-manager-rs/actions)
