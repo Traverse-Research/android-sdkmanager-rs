@@ -1,6 +1,6 @@
 [package]
 name = "android-sdk-manager-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Rust native replacement for Android's sdkmanager"
@@ -21,7 +21,7 @@ name = "sdkmanager"
 path = "src/lib.rs"
 
 [[bin]]
-name = "main"
+name = "cargo-android-sdkmanager"
 path = "src/main.rs"
 
 [dependencies]
