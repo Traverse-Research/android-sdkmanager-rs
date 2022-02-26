@@ -1,14 +1,14 @@
 [package]
-name = "android-sdk-manager-rs"
+name = "android-sdkmanager-rs"
 version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Rust native replacement for Android's sdkmanager"
 categories = ["android"]
-homepage = "https://github.com/Traverse-Research/android-sdk-manager-rs"
-repository = "https://github.com/Traverse-Research/android-sdk-manager-rs"
+homepage = "https://github.com/Traverse-Research/android-sdkmanager-rs"
+repository = "https://github.com/Traverse-Research/android-sdkmanager-rs"
 keywords = ["android", "sdkmanager"]
-documentation = "https://docs.rs/android-sdk-manager-rs/"
+documentation = "https://docs.rs/android-sdkmanager-rs/"
 
 include = [
     "Cargo.toml",
@@ -17,7 +17,7 @@ include = [
 ]
 
 [lib]
-name = "sdkmanager"
+name = "android-sdkmanager"
 path = "src/lib.rs"
 
 [[bin]]

@@ -1,9 +1,9 @@
-🤖 android-sdk-manager-rs
+🤖 android-sdkmanager-rs
 =
 
-[![Actions Status](https://github.com/Traverse-Research/android-sdk-manager-rs/workflows/CI/badge.svg)](https://github.com/Traverse-Research/android-sdk-manager-rs/actions)
-[![Latest version](https://img.shields.io/crates/v/android-sdk-manager-rs.svg)](https://crates.io/crates/android-sdk-manager-rs)
-[![Docs](https://docs.rs/android-sdk-manager-rs/badge.svg)](https://docs.rs/android-sdk-manager-rs/)
+[![Actions Status](https://github.com/Traverse-Research/android-sdkmanager-rs/workflows/CI/badge.svg)](https://github.com/Traverse-Research/android-sdkmanager-rs/actions)
+[![Latest version](https://img.shields.io/crates/v/android-sdkmanager-rs.svg)](https://crates.io/crates/android-sdkmanager-rs)
+[![Docs](https://docs.rs/android-sdkmanager-rs/badge.svg)](https://docs.rs/android-sdkmanager-rs/)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
 [![LICENSE](https://img.shields.io/badge/license-apache-blue.svg)](LICENSE-APACHE)
 [![Contributor Covenant](https://img.shields.io/badge/contributor%20covenant-v1.4%20adopted-ff69b4.svg)](../main/CODE_OF_CONDUCT.md)
@@ -12,7 +12,7 @@
 
 ```toml
 [dependencies]
-android-sdk-manager-rs = "0.1.0"
+android-sdkmanager-rs = "0.1.0"
 ```
 
 ### License

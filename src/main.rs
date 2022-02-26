@@ -42,7 +42,7 @@ fn main() {
                 MatchType::EntireFolder("sysroot"),
                 // Test
                 MatchType::EntireFolder("cxx-stl"),
-                // C:\Users\Jasper\traverse\android-sdk-manager-rs\vendor-full\breda-android-sdk\ndk\23.1.7779620\toolchains\llvm\prebuilt\windows-x86_64\lib64\clang\12.0.8\include\stddef.h
+                // C:\Users\Jasper\traverse\android-sdkmanager-rs\vendor-full\breda-android-sdk\ndk\23.1.7779620\toolchains\llvm\prebuilt\windows-x86_64\lib64\clang\12.0.8\include\stddef.h
                 MatchType::EntireFolder("build-tools"),
                 MatchType::EntireFolder("lib64"),
                 MatchType::EntireFolder("libc++_shared.so"),

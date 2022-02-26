@@ -6,6 +6,6 @@ sign-commit = true
 sign-tag = true
 
 pre-release-replacements = [
-  {file="README.md", search="android-sdk-manager-rs = .*", replace="{{crate_name}} = \"{{version}}\""},
-  {file="README.tpl", search="android-sdk-manager-rs = .*", replace="{{crate_name}} = \"{{version}}\""},
+  {file="README.md", search="android-sdkmanager-rs = .*", replace="{{crate_name}} = \"{{version}}\""},
+  {file="README.tpl", search="android-sdkmanager-rs = .*", replace="{{crate_name}} = \"{{version}}\""},
 ]
