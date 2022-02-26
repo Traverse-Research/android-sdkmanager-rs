@@ -31,7 +31,6 @@ zip = "0.5"
 globalenv = "0.4"
 dunce = "1"
 rayon = "1.5"
-bytes = "1.1"
 pico-args = "0.4"
 anyhow = "1"
 

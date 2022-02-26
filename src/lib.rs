@@ -239,7 +239,7 @@ pub fn download_and_extract_packages(
                 {
                     use std::os::unix::fs::PermissionsExt;
                     if let Some(mode) = file.unix_mode() {
-                        fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
+                        std::fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
                     }
                 }
             }
