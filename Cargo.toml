@@ -1,6 +1,6 @@
 [package]
 name = "android-sdkmanager-rs"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Rust native replacement for Android's sdkmanager"
