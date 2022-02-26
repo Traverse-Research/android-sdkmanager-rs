@@ -1,9 +1,17 @@
 [package]
-name = "breda-get-android"
+name = "android-sdk-manager-rs"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "sdkmanager"
+path = "src/lib.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
 
 [dependencies]
 ureq = "2.4"
