@@ -17,7 +17,7 @@ include = [
 ]
 
 [lib]
-name = "android-sdkmanager"
+name = "android_sdkmanager"
 path = "src/lib.rs"
 
 [[bin]]
