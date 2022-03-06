@@ -12,7 +12,7 @@
 
 ```toml
 [dependencies]
-android-sdkmanager-rs = "0.3.0"
+android-sdkmanager-rs = "0.4.0"
 ```
 
 {{readme}}
