@@ -72,9 +72,16 @@ fn main() -> Result<()> {
         packages_borrowed.as_slice()
     };
 
+    #[cfg(target_os = "windows")]
+    let host_os = HostOs::Windows;
+    #[cfg(target_os = "linux")]
+    let host_os = HostOs::Linux;
+    #[cfg(target_os = "macos")]
+    let host_os = HostOs::MacOs;
+
     download_and_extract_packages(
         install_dir,
-        HostOs::Windows,
+        host_os,
         packages_borrowed,
         if full {
             None
