@@ -21,7 +21,15 @@ struct AppArgs {
 }
 
 fn parse_args() -> Result<AppArgs, pico_args::Error> {
-    let mut pargs = pico_args::Arguments::from_env();
+    let mut args: Vec<_> = std::env::args_os().collect();
+    args.remove(0);
+
+    // when invoked as cargo tool
+    if args[0] == "android-sdkmanager" {
+        args.remove(0);
+    }
+
+    let mut pargs = pico_args::Arguments::from_vec(args);
 
     // Help has a higher priority and should be handled separately.
     if pargs.contains(["-h", "--help"]) {
