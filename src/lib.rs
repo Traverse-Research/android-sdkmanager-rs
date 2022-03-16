@@ -181,7 +181,7 @@ fn is_symlink(file: &zip::read::ZipFile) -> bool {
     false
 }
 
-fn download_and_extract_packages(
+pub fn download_and_extract_packages(
     install_dir: &str,
     host_os: HostOs,
     download_packages: &[&str],
