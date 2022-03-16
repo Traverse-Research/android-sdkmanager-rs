@@ -255,14 +255,14 @@ fn download_and_extract_packages(
                                 let link_path = std::path::PathBuf::from(
                                     std::ffi::OsString::from_vec(contents),
                                 );
-                                std::os::unix::fs::symlink(link_path, outpath).unwrap();
+                                std::os::unix::fs::symlink(link_path, &outpath).unwrap();
                             }
 
                             #[cfg(target_family = "windows")]
                             {
                                 // TODO: Support non-UTF-8 paths (currently only works for paths which are valid UTF-8)
                                 let link_path = String::from_utf8(contents).unwrap();
-                                std::os::windows::fs::symlink_file(link_path, outpath).unwrap();
+                                std::os::windows::fs::symlink_file(link_path, &outpath).unwrap();
                             }
                         } else {
                             let mut outfile = std::fs::File::create(&outpath).unwrap();
