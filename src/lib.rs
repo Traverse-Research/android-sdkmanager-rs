@@ -169,7 +169,19 @@ fn is_allowed(path: &Path, allow_list: Option<&[MatchType]>) -> bool {
     }
 }
 
-pub fn download_and_extract_packages(
+const S_IFLNK: u32 = 0o120000; // symbolic link
+
+fn is_symlink(file: &zip::read::ZipFile) -> bool {
+    if let Some(mode) = file.unix_mode() {
+        if mode & S_IFLNK == S_IFLNK {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn download_and_extract_packages(
     install_dir: &str,
     host_os: HostOs,
     download_packages: &[&str],
@@ -230,8 +242,32 @@ pub fn download_and_extract_packages(
                             }
                         }
 
-                        let mut outfile = std::fs::File::create(&outpath).unwrap();
-                        std::io::copy(&mut file, &mut outfile).unwrap();
+                        // adapted from https://github.com/zip-rs/zip/issues/77
+                        if is_symlink(&file) {
+                            let mut contents = Vec::new();
+                            file.read_to_end(&mut contents).unwrap();
+
+                            #[cfg(target_family = "unix")]
+                            {
+                                // Needed to be able to call `OsString::from_vec(Vec<u8>)`
+                                use std::os::unix::ffi::OsStringExt as _;
+
+                                let link_path = std::path::PathBuf::from(
+                                    std::ffi::OsString::from_vec(contents),
+                                );
+                                std::os::unix::fs::symlink(link_path, extracted_file_path).unwrap();
+                            }
+
+                            #[cfg(target_family = "windows")]
+                            {
+                                // TODO: Support non-UTF-8 paths (currently only works for paths which are valid UTF-8)
+                                let link_path = String::from_utf8(contents).unwrap();
+                                std::os::windows::fs::symlink_file(link_path, outpath).unwrap();
+                            }
+                        } else {
+                            let mut outfile = std::fs::File::create(&outpath).unwrap();
+                            std::io::copy(&mut file, &mut outfile).unwrap();
+                        }
                     }
                 }
 
