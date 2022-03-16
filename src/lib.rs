@@ -255,7 +255,7 @@ fn download_and_extract_packages(
                                 let link_path = std::path::PathBuf::from(
                                     std::ffi::OsString::from_vec(contents),
                                 );
-                                std::os::unix::fs::symlink(link_path, extracted_file_path).unwrap();
+                                std::os::unix::fs::symlink(link_path, outpath).unwrap();
                             }
 
                             #[cfg(target_family = "windows")]
