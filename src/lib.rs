@@ -267,12 +267,16 @@ pub fn download_and_extract_packages(
                         } else {
                             let mut outfile = std::fs::File::create(&outpath).unwrap();
                             std::io::copy(&mut file, &mut outfile).unwrap();
-            
+
                             #[cfg(unix)]
                             {
                                 use std::os::unix::fs::PermissionsExt;
                                 if let Some(mode) = file.unix_mode() {
-                                    std::fs::set_permissions(&outpath, std::fs::Permissions::from_mode(mode)).unwrap();
+                                    std::fs::set_permissions(
+                                        &outpath,
+                                        std::fs::Permissions::from_mode(mode),
+                                    )
+                                    .unwrap();
                                 }
                             }
                         }
