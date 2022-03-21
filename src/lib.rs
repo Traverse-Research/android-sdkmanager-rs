@@ -229,7 +229,7 @@ pub fn download_and_extract_packages(
 
                 let outpath = PathBuf::from(install_dir).join(androidolize_zipfile_paths(
                     filepath,
-                    Path::new(&package_name.replace(";", "/")),
+                    Path::new(&package_name.replace(';', "/")),
                 ));
 
                 if is_allowed(filepath, allow_list) {
