@@ -29,7 +29,7 @@ ureq = "2.4"
 roxmltree = "0.14"
 zip = "0.5"
 rayon = "1.5"
-pico-args = "0.4"
+pico-args = "0.5"
 anyhow = "1"
 
 [profile.dev.package.'*']
