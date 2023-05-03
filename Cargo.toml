@@ -10,11 +10,7 @@ repository = "https://github.com/Traverse-Research/android-sdkmanager-rs"
 keywords = ["android", "sdkmanager"]
 documentation = "https://docs.rs/android-sdkmanager-rs/"
 
-include = [
-    "Cargo.toml",
-    "LICENSE-*",
-    "src/**",
-]
+include = ["LICENSE-*", "/src"]
 
 [lib]
 name = "android_sdkmanager"
