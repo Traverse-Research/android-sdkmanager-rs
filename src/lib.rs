@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::io::Cursor;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use ureq::Agent;
 use zip::ZipArchive;
 
 #[derive(Default, Debug)]
@@ -89,8 +90,13 @@ fn find_remote_package_by_name<'a>(
     android_package
 }
 
+fn get_agent() -> Agent {
+    ureq::AgentBuilder::new().try_proxy_from_env(true).build()
+}
+
 fn download_android_sdk_archive(package: &AndroidArchive) -> ZipArchive<Cursor<Box<[u8]>>> {
-    let mut response = ureq::get(&package.url).call().unwrap().into_reader();
+    let ag = get_agent();
+    let mut response = ag.get(&package.url).call().unwrap().into_reader();
     let mut data = vec![];
     response.read_to_end(&mut data).unwrap();
     ZipArchive::new(Cursor::new(data.into_boxed_slice())).unwrap()
@@ -187,8 +193,10 @@ pub fn download_and_extract_packages(
     download_packages: &[&str],
     allow_list: Option<&[MatchType]>,
 ) {
+    let ag = get_agent();
     let root_url = "https://dl.google.com/android/repository/";
-    let packages = ureq::get(&format!("{}/repository2-1.xml", root_url))
+    let packages = ag
+        .get(&format!("{}/repository2-1.xml", root_url))
         .call()
         .unwrap()
         .into_string()
