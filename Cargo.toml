@@ -25,7 +25,7 @@ name = "cargo-android-sdkmanager"
 path = "src/main.rs"
 
 [dependencies]
-ureq = "2.4"
+ureq = "2.8"
 roxmltree = "0.14"
 zip = "0.6"
 rayon = "1.5"
