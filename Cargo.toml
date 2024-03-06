@@ -25,12 +25,15 @@ name = "cargo-android-sdkmanager"
 path = "src/main.rs"
 
 [dependencies]
-ureq = "2.4"
+ureq = version = "2.4"
 roxmltree = "0.14"
 zip = "0.6"
 rayon = "1.5"
 pico-args = "0.5"
 anyhow = "1"
+
+[features]
+native-certs = ["ureq/rustls-native-certs"]
 
 [profile.dev.package.'*']
 opt-level = 's'
