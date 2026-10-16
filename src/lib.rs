@@ -63,8 +63,8 @@ fn list_dependencies<'a>(dependencies_node: &'a roxmltree::Node<'a, 'a>) -> Vec<
     dependency_paths
 }
 
-fn find_remote_package_by_name<'a>(
-    doc: &'a roxmltree::Document,
+fn find_remote_package_by_name(
+    doc: &roxmltree::Document,
     root_url: &str,
     package_name: &str,
 ) -> AndroidPackage {
@@ -208,7 +208,7 @@ pub fn download_and_extract_packages(
 
         for archive in package.archives {
             if archive.host_os.contains(host_os.to_str()) || archive.host_os.is_empty() {
-                println!("Downloading `{}`", &package_name);
+                println!("Downloading `{}`", package_name);
                 archives.push((package_name.clone(), archive));
             }
         }
@@ -238,7 +238,7 @@ pub fn download_and_extract_packages(
                     } else {
                         if let Some(p) = outpath.parent() {
                             if !p.exists() {
-                                std::fs::create_dir_all(&p).unwrap();
+                                std::fs::create_dir_all(p).unwrap();
                             }
                         }
 
