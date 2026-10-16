@@ -63,8 +63,8 @@ fn list_dependencies<'a>(dependencies_node: &'a roxmltree::Node<'a, 'a>) -> Vec<
     dependency_paths
 }
 
-fn find_remote_package_by_name<'a>(
-    doc: &'a roxmltree::Document,
+fn find_remote_package_by_name(
+    doc: &roxmltree::Document,
     root_url: &str,
     package_name: &str,
 ) -> AndroidPackage {
@@ -171,7 +171,7 @@ fn is_allowed(path: &Path, allow_list: Option<&[MatchType]>) -> bool {
 
 const S_IFLNK: u32 = 0o120000; // symbolic link
 
-fn is_symlink(file: &zip::read::ZipFile) -> bool {
+fn is_symlink<R: std::io::Read>(file: &zip::read::ZipFile<'_, R>) -> bool {
     if let Some(mode) = file.unix_mode() {
         if mode & S_IFLNK == S_IFLNK {
             return true;
@@ -208,7 +208,7 @@ pub fn download_and_extract_packages(
 
         for archive in package.archives {
             if archive.host_os.contains(host_os.to_str()) || archive.host_os.is_empty() {
-                println!("Downloading `{}`", &package_name);
+                println!("Downloading `{}`", package_name);
                 archives.push((package_name.clone(), archive));
             }
         }
@@ -228,17 +228,17 @@ pub fn download_and_extract_packages(
                 let filepath = file.enclosed_name().unwrap();
 
                 let outpath = PathBuf::from(install_dir).join(androidolize_zipfile_paths(
-                    filepath,
+                    &filepath,
                     Path::new(&package_name.replace(';', "/")),
                 ));
 
-                if is_allowed(filepath, allow_list) {
-                    if file.name().ends_with('/') {
+                if is_allowed(&filepath, allow_list) {
+                    if file.is_dir() {
                         std::fs::create_dir_all(&outpath).unwrap();
                     } else {
                         if let Some(p) = outpath.parent() {
                             if !p.exists() {
-                                std::fs::create_dir_all(&p).unwrap();
+                                std::fs::create_dir_all(p).unwrap();
                             }
                         }
 

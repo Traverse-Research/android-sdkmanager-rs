@@ -1,6 +1,6 @@
 [package]
 name = "android-sdkmanager-rs"
-version = "0.6.0"
+version = "0.7.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Rust native replacement for Android's sdkmanager"
@@ -27,7 +27,7 @@ path = "src/main.rs"
 [dependencies]
 ureq = "2.4"
 roxmltree = "0.14"
-zip = "0.6"
+zip = { version = "9.0.4", default-features = false, features = ["deflate"] }
 rayon = "1.5"
 pico-args = "0.5"
 anyhow = "1"
